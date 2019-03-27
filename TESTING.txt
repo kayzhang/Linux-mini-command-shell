@@ -1,0 +1,653 @@
+The process of testing for "myShell".
+======================================================================
+1. Strat myShell by typing the following commands:
+
+   make
+   ./myShell
+
+2. After myShell starts, it will print a prompt in the following format:
+
+   myShell:~/ece551/mp_miniproject $
+
+3. Do the testing by typing the command after the prompt and hit ENTER.
+
+4. After testing finished, terminate the program by "exit".
+   Note: to exit, you should input exactly the same command as "exit".
+   	 No white spaces and extra arguments are allowed.
+
+The test cases and explanations.
+======================================================================
+Note, the following cases are tested independantly, which means the former
+test cases will have no impact on the later test cases.
+
+Note, all the following test cases are illustrated in the directory
+"~/ece551/mp_miniproject".
+
+Step 1: Read a command name and, run it.
+----------------------------------------------------------------------
+(1) Just hit ENTER
+
+    You will see the same prompt, which is correct because this is an empty
+    command, the shell does nothing and continues reading the next line.
+
+(2) Run /bin/ls
+
+    You will see a list of the names of the files and sub-directories in
+    the current directory, followed by the following two lines:
+
+    Program exited with status 0
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct because the shell execute the /bin/ls program, which
+    prints the names of the files in the current directory.
+    After the /bin/ls program exits, it will print the exit status:
+    Program exited with status 0
+    Then this command finishes, and the shell continues to wait for another
+    command and prints the prompt:
+    myShell:~/ece551/mp_miniproject $
+
+    Note, in the following test cases, I will avoid explaining the exit
+    status line and the next prompt line if they are obvious.
+
+(3) Run /bin/cp
+
+    You will see that it prints:
+
+    /bin/cp: missing file operand
+    Try '/bin/cp --help' for more information.
+    Program exited with status 1
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct beacuse the shell execute the /bin/cp program, which
+    requires file operand. However we doesn't provide file operand, so it
+    reports an error, and the program exits with status 1.
+
+(4) Run ./testcases/printHello
+
+    You will see that it prints:
+
+    hello
+    Program exited with status 0
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct because the shell executes the ./testcases/printHello
+    program, which simply prints "hello\n", and then the program exits
+    with status 0.
+
+(5) Run /bin/ece551
+
+    You will see that it prints:
+
+    Command /bin/ece551 not found
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct because when the shell read a command, it first check
+    if the command exists. If the program doesn't exist, it will report an
+    error, and the execve() function will not be called. So, there won't
+    be a line about the exit status of the nonexistent command.
+
+(6) Hit Ctrl-D
+
+    You will see that it prints:
+
+    myShell:~/ece551/mp_miniproject $kz75@ece551:~/ece551/mp_miniproject$
+
+    And myShell terminates while the control returns to bash.
+
+    This is correct because Ctrl-D will sent EOF to the shell, which means
+    the shell should exit. Because there is no '\n' in the command, the
+    prompt of bash will display on the same line as the shell's last prompt.
+
+(7) Run exit
+
+    You will see that it prints:
+
+    myShell:~/ece551/mp_miniproject $exit
+    kz75@ece551:~/ece551/mp_miniproject$
+
+    And myShell terminates while the control returns to bash.
+
+    This is correct because "exit" behaves the same as Ctrl-D, except that
+    there is a '\n' in the command, so the prompt of bash will display on
+    a new line.
+
+    Note, the design of myShell will only support the exact "exit" to
+    terminate the shell. White spaces and extra arguments will not be allowed.
+    So, if you run "exit " or "exit extra", it will prints:
+
+    Command exit not found
+    myShell:~/ece551/mp_miniproject $
+
+(8) Run ./README
+
+    You will see that it prints:
+
+    execve failed.
+    Program exited with status 1
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct because the shell will see ./README as a valid command
+    file, and pass it to execve(). Because ./README is not a executable
+    program, execve() fails, and myShell reports an error. And execve
+    exists with status 1.
+
+(9) Run ./testcases/killed
+
+    You will see that it prints:
+
+    Program was killed by signal 11
+    myShell:~/ece551/mp_miniproject $
+
+    This is correct because the ./testcases/killed program will result in
+    segmentation fault. This program will be killed and my shell prints its
+    exit status, which is "Program was killed by signal 11".
+
+Step 2: Improving commands.
+----------------------------------------------------------------------
+(9) Run ls
+
+    The result will be the same with test case (2) (run /bin/ls).
+    This is correct because in step 2, when the user types a command name
+    that does not have a forward slash (/) in it, the shell will searches
+    the ECE551PATH environment variable for commands. And ECE551PATH is
+    initialized with the value of PATH. So the shell will find /bin/ls and
+    executes it.
+
+(10) Run printHello
+
+     You will see that it prints:
+
+     Command printHello not found
+     myShell:~/ece551/mp_miniproject $
+     
+     This is correct because ./testcases is not in the ECE551PATH variable.
+     Although the program ./tesecase/printHello does exist, the shell cannot
+     find it, so it will report an error.
+
+(11) Run ./testcases/printArguments a b 23
+
+     You will see that it prints:
+
+     The 1th argument is: a
+     The 2th argument is: b
+     The 3th argument is: 23
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because ./testcase/printArguments is a helper program
+     which prints all its arguments. And the shell will parse the arguments
+     by separating then with white spaces.
+
+(12) Run ./testcases/printArguments a     b          23
+
+     You will see that it prints:
+
+     The 1th argument is: a
+     The 2th argument is: b
+     The 3th argument is: 23
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because there may be an arbitrary amount of whitespace
+     in between arguments.
+     
+(13) Run ./testcases/printArguments a\ b c\ \ d
+
+     You will see that it prints:
+
+     The 1th argument is: a b
+     The 2th argument is: c  d
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because any white space which is escaped with a \
+     will be literally included in the argument and not used as a separator.
+
+(13) Run ./testcases/printArguments a\  b c \ d
+
+     You will see that it prints:
+     
+     The 1th argument is: a
+     The 2th argument is: b
+     The 3th argument is: c
+     The 4th argument is:  d
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because "\ b" will be seen as " b".
+
+(14) Run ./testcases/printArguments a\b \  c
+
+     You will see that it prints:
+
+     The 1th argument is: ab
+     The 2th argument is:  
+     The 3th argument is: c 
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because "a\b" will be seen as "ab", and "\  c" will
+     been seen as " " and "c". Note in this case, the escaped space is
+     certainly an argument itself.
+
+Step 2: Directories and variables.
+----------------------------------------------------------------------
+(15) Run cd
+
+     You will see that it prints:
+
+     myShell:~ $
+
+     This is correct because when you give no argument to cd, it should
+     change directory to the home directory.
+     And now if you run env, you will find that PWD=/home/kz75, which is
+     correct because when PWD should be the current directory.
+
+(16) Run cd .
+
+     You will see that it prints the same prompt, which is correct because
+     "cd ." will change the directory to the current directory, which means
+     the current directory is not changed.
+
+(17) Run cd ..
+
+     You will see that it prints:
+
+     myShell:~/ece551 $
+
+     This is correct because it changes the current directory to its parent
+     directory. And now the PWD variable will be PWD=/home/kz75/ece551.
+
+(18) Run cd testcases
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject/testcases $
+
+     This is correct because it changes the current directory to the
+     relative directory testcases.
+
+(19) Run cd /bin/haha
+
+     You will see that it prints:
+
+     cd: change directory failed
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because the directory /bin/haha dose not exist, and
+     the shell should report an error.
+
+(20) Run cd /bin testcases
+
+     You will see that it prints:
+
+     cd: too many arguments
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because cd cannot have more than 1 arguments, and the
+     shell should report an error.
+
+(21) Run
+
+     set a 3
+     echo $a
+     
+     and then run env
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a 3
+     myShell:~/ece551/mp_miniproject $echo $a
+     3
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     And when you run env, you will find there is no a=3 in the output.
+
+     This is correct because set a variable, your shell should remember this
+     value, and make use of it in future $ evaluations. However, it should
+     not be placed in the environment for other programs.
+
+(22) Run
+
+     set a 3
+     echo $a
+     set a 4
+     echo $a
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a 3
+     myShell:~/ece551/mp_miniproject $echo $a
+     3                                       
+     Program exited with status 0            
+     myShell:~/ece551/mp_miniproject $set a 4
+     myShell:~/ece551/mp_miniproject $echo $a
+     4                                       
+     Program exited with status 0            
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because, if you a variable already exists, set will
+     change its value.
+
+(23) Run set &a 5
+
+     You will see that it prints:
+     
+     set: invalid variable name       
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because a variable name must be a combination of
+     letters (case sensitive), underscores, and numbers.
+
+(24) Run
+
+     set a hdausguh hdasihidoahi E$%#%#%^E
+     echo $a
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a hdausguh hdasihidoahi E$%#%#%^E
+     myShell:~/ece551/mp_miniproject $echo $a                              
+     hdausguh hdasihidoahi E$%#%#%^E                                       
+     Program exited with status 0                                          
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because it will set the variable a to the string on the
+     rest of the command line (even if it contains spaces, etc.)
+
+(25) Run
+
+     set a
+     echo $a
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a  
+     myShell:~/ece551/mp_miniproject $echo $a
+                                             
+     Program exited with status 0            
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because "set a" will set a to a empty string.
+
+(26) Run export x
+
+     You will see that it prints:
+
+     export: variable x doesn't exist 
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because variable x doesn't exist, and the shell
+     reports an error.
+
+(27) Run
+
+     set x haha
+     export x
+     echo $x
+
+     You will see that it prints:
+     myShell:~/ece551/mp_miniproject $set x haha
+     myShell:~/ece551/mp_miniproject $export x  
+     myShell:~/ece551/mp_miniproject $echo $x   
+     haha                                       
+     Program exited with status 0               
+     myShell:~/ece551/mp_miniproject $
+
+     And then run env, you will find that there is a line of "x=haha"
+     in the output.
+
+     This is correct because after export a valid variable, it will show
+     up in the environment variables.
+
+(28) Run export &a
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $export &a             
+     export: invalid variable name or invalid argument numbe
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because a variable name must be a combination of
+     letters (case sensitive), underscores, and numbers.
+
+
+(29) Run
+
+     inc val
+     echo $val
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $inc val  
+     myShell:~/ece551/mp_miniproject $echo $val
+     1                                         
+     Program exited with status 0              
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because val doesn't exists, then the intiial value
+     is treated as 0 (and thus incremented to 1).
+
+     And then run env, you will find that there is no "val=1" in the output,
+     which is correct because it hasn't been exported.
+
+(30) Run
+
+     set val haha
+     inc val
+     echo $val
+
+     You will see that it prints:
+     
+     myShell:~/ece551/mp_miniproject $set val haha
+     myShell:~/ece551/mp_miniproject $inc val     
+     myShell:~/ece551/mp_miniproject $echo $val   
+     1                                            
+     Program exited with status 0                 
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because val is not a decimal number, then treat it as
+     zer0, and then increment to 1.
+
+(31) Run
+
+     set a 4
+     echo $a		// a=4
+     inc a
+     echo $a		// a=5
+     
+     set val1 1.3
+     echo $val1         // val1=1.3
+     inc val1		
+     echo $val1		// val1=2.3
+     
+     set val2 +1.3	
+     echo $val2		// val2=+1.3
+     inc val2
+     echo $val2		// val2=2.3
+
+     set val3 -1.3
+     echo $val3		// val3=-1.3
+     inc val3
+     echo $val3		// val3=-0.3
+
+     set val4 e+2
+     echo $val4		// val4=2e+2
+     inc val4
+     echo $val4		// val4=201
+
+     The current value of the variables are list in the right.
+     This is correct before inc, the value is displayed as a string.
+     When inc, they are treated as a double number, and increment
+     them by 1.
+
+(32) Run
+
+     set ECE551PATH /usr
+     ls
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set ECE551PATH /usr
+     myShell:~/ece551/mp_miniproject $ls                 
+     Command ls not found                                
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because if the user changes ECE551PATH, it should
+     affect where the shell searches for programs. And there is no
+     program called "ls" in the current ECE551PATH which is "/usr".
+
+(33) Run
+
+     printHello
+     set ECE551PATH /home/kz75/ece551/mp_miniproject/testcases
+     printHello
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $printHello
+     Command printHello not found
+     myShell:~/ece551/mp_miniproject $set ECE551PATH /home/kz75/ece551/mp_miniproject/testcases
+     myShell:~/ece551/mp_miniproject $printHello
+     hello
+     Program exited with status 0
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because before set ECE551PATH, printHello is not in
+     the path, so the shell cannot find it. However, after set ECE551PATH,
+     the shell can find the printHello program.
+
+(34) Run cd /root
+
+     You will see that it prints:
+
+     cd: change directory failed      
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because I don't have the permission to go into the
+     /root directory. So cd will failed and report an error.
+
+(35) Run
+
+     set val1 a
+     set val2 b
+     echo $val1-$val2
+
+     You will see that it prints:
+
+     a-b                              
+     Program exited with status 0     
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because it is it is $var1 followed immediately by '-',
+     and then followd by $val2.
+     
+(35) Run echo $haha $ b
+
+     You will see that it prints:
+
+     $ b                              
+     Program exited with status 0     
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because $haha doesn't exist, and the shell evaluates
+     nonexistent variables into empty string. And in my design, a single
+     '$' followed by a char which is not a valid char for an variable name
+     keeps unchanged.
+
+(36) Run
+
+     set a b
+     set $a c
+     echo $b
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a b 
+     myShell:~/ece551/mp_miniproject $set $a c
+     myShell:~/ece551/mp_miniproject $echo $b 
+     c                                        
+     Program exited with status 0             
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because after "set a b", a=b.
+     The "set $a c" will be evaluated to "set b c", after which b=c.
+     The when I echo $b, it will prints 'c'.
+
+(37) Run
+
+     set _m n
+     set _x y
+     set _a b
+     set $_m$_x $_a
+     echo $_m$_x
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set _m n      
+     myShell:~/ece551/mp_miniproject $set _x y      
+     myShell:~/ece551/mp_miniproject $echo $_m$_n   
+     n                                              
+     Program exited with status 0                   
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because after the first two line, _m=n and _x=y.
+     Then in "echo $_m$_n", $_m evaluates to n, and $_n doesn't exist,
+     evaluates to empty string. So the result is "n".
+
+(38) Run
+
+     set a $&*.
+     echo $a
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a $&*.
+     myShell:~/ece551/mp_miniproject $echo $a   
+     $&*.                                       
+     Program exited with status 0               
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because nonexistent variables in my design, a
+     single '$' followed by a char which is not a valid char for an
+     variable name keeps unchanged.
+
+(39) Run
+
+     set
+     export
+     inc
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set                    
+     set: invalid variable name                              
+     myShell:~/ece551/mp_miniproject $export                 
+     export: invalid variable name or invalid argument number
+     myShell:~/ece551/mp_miniproject $inc                    
+     inc: invalid variable name or invalid argument number   
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because set, export and inc doesn't support zero
+     argument, and the shell will report an error.
+
+(40) Run
+
+     set a 2
+     set b 3
+     export a b
+     inc a b
+
+     You will see that it prints:
+
+     myShell:~/ece551/mp_miniproject $set a 2                
+     myShell:~/ece551/mp_miniproject $set b 3                
+     myShell:~/ece551/mp_miniproject $export a b             
+     export: invalid variable name or invalid argument number
+     myShell:~/ece551/mp_miniproject $inc a b                
+     inc: invalid variable name or invalid argument number   
+     myShell:~/ece551/mp_miniproject $
+
+     This is correct because export and inc doesn't support more
+     than one arguments, and the shell will report an error.
